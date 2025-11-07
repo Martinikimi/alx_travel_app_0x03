@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import get_object_or_404
 from .models import Booking, Payment
+from .tasks import send_booking_confirmation_email
 
 @require_http_methods(["POST"])
 @csrf_exempt
@@ -99,9 +100,13 @@ def verify_payment(request, booking_id):
                     payment.transaction_id = verification_data['data']['id']
                     payment.save()
                     
+                    # 🚀 CELERY TASK: Send booking confirmation email
+                    send_booking_confirmation_email.delay(booking.id)
+                    
                     return JsonResponse({
                         'success': True,
-                        'status': 'completed'
+                        'status': 'completed',
+                        'message': 'Payment completed! Booking confirmation email is being sent.'
                     })
                 else:
                     payment.status = 'failed'
